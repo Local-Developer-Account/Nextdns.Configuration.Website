@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NextDNS Premium Configuration</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Fira+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1724;
+  --card-bg:rgba(27,37,54,0.65);
+  --accent:#d62828;
+  --muted:#9aa4b2;
+  --radius:16px;
+  --shadow:0 10px 30px rgba(0,0,0,0.5);
+  --transition:0.4s;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:#e6eef6;overflow-x:hidden;position:relative;}
+.container{max-width:1200px;margin:50px auto;padding:0 20px;opacity:0;transform:translateY(30px);transition:opacity 0.8s ease, transform 0.8s ease;}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:30px;}
+header h1{display:flex;align-items:center;gap:15px;font-size:30px;}
+.logo{width:60px;height:60px;background:linear-gradient(135deg,rgba(214,40,40,0.3),rgba(255,255,255,0.05));display:grid;place-items:center;border-radius:12px;font-weight:700;color:var(--accent);font-family:monospace;font-size:22px;}
+.subtitle{color:var(--muted);font-size:15px;margin-top:5px;}
+button{cursor:pointer;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;transition:all 0.25s;}
+.copy-box{background:var(--accent);color:#fff;margin-right:5px;}
+.copy-domain{background:#444;color:#fff;margin-left:6px;}
+.copy-box:hover,.copy-domain:hover{opacity:0.85;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:25px;margin-top:25px;position:relative;z-index:1;}
+.card{position:relative;background:var(--card-bg);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);overflow:hidden;backdrop-filter:blur(10px);transition:all var(--transition);}
+.card::before{content:'';position:absolute;top:-2px;left:-50%;width:200%;height:4px;background:linear-gradient(270deg,#d62828,#ff8c00,#ffd700,#d62828);border-radius:4px;animation:moveBorder 4s linear infinite;}
+.card::after{content:'';position:absolute;inset:0;border-radius:16px;background:linear-gradient(45deg,rgba(255,255,255,0.05),rgba(255,255,255,0));pointer-events:none;}
+@keyframes moveBorder{0%{transform:translateX(0%);}100%{transform:translateX(50%);}}
+.card:hover{transform:scale(1.03);box-shadow:0 15px 50px rgba(214,40,40,0.7);}
+.card-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:15px;}
+.card-title{font-size:17px;font-weight:700;}
+.expand-icon{width:14px;height:14px;display:inline-block;transition:transform var(--transition);}
+.expand-icon svg{width:100%;height:100%;fill:var(--accent);}
+.expanded .expand-icon{transform:rotate(90deg);}
+.domain-list{list-style:none;margin:0;padding:0;overflow:hidden;max-height:1000px;transition:max-height var(--transition) ease,padding var(--transition);}
+.domain-list.collapsed{max-height:0;padding:0;margin:0;}
+.domain-list li{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-family:'Fira Mono',monospace;font-size:14px;transition:background 0.3s;}
+.domain-list li:hover{background:rgba(214,40,40,0.08);}
+.copied-highlight{animation:copiedAnim 0.6s ease forwards;}
+@keyframes copiedAnim{0%{background-color:var(--accent);}50%{background-color:#4caf50;}100%{background-color:var(--accent);}}
+.card-footer{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+#loadingOverlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,36,0.95);backdrop-filter:blur(6px);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;}
+.loader-text{color:white;font-size:24px;font-weight:700;margin-bottom:15px;}
+.dots span{display:inline-block;width:12px;height:12px;margin:0 5px;background:#fff;border-radius:50%;animation:bounce 0.6s infinite alternate;}
+.dots span:nth-child(2){animation-delay:0.2s;}
+.dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes bounce{to{transform:translateY(-12px);}}
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+.particle{position:absolute;width:4px;height:4px;background:rgba(255,255,255,0.1);border-radius:50%;animation:float 10s linear infinite;}
+@keyframes float{0%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-80px) rotate(180deg);}100%{transform:translateY(0) rotate(360deg);}}
+</style>
+</head>
+<body>
+<div id="particles"></div>
+<div id="loadingOverlay">
+  <div class="loader-text">Loading</div>
+  <div class="dots"><span></span><span></span><span></span></div>
+</div>
+<div class="container">
+  <header>
+    <div>
+      <h1><div class="logo">ND</div>NextDNS Configuration</h1>
+      <div class="subtitle">iOS sideloading — deny/revoke & whitelist helper</div>
+    </div>
+    <div style="text-align:right;">
+      <button class="copy-box" id="copyAllBtn">Copy All</button>
+      <button class="copy-box" id="downloadAllBtn">Download All</button>
+    </div>
+  </header>
+  <div class="grid" id="cardsGrid"></div>
+</div>
+<script>
+for(let i=0;i<80;i++){
+  const p=document.createElement('div');p.className='particle';
+  p.style.top=Math.random()*100+'%';
+  p.style.left=Math.random()*100+'%';
+  p.style.width=p.style.height=2+Math.random()*4+'px';
+  p.style.animationDuration=5+Math.random()*10+'s';
+  document.getElementById('particles').appendChild(p);
+}
+function formatDomain(domain){ return 'https://'+domain.replace('*.', ''); }
+const lists = {
+  "Deny / Block List":["ocsp.apple.com","ocsp2.apple.com","ocsp3.apple.com","ocsp4.apple.com","certs.apple.com","crl.apple.com","valid.apple.com","appattest.apple.com"],
+  "Optional Deny / Block List":["vpp.itunes.apple.com","axm-app.apple.com","gdmf.apple.com","guzzoni-apple-com.v.aaplimg.com","comm-main.ess.apple.com","comm-cohort.ess.apple.com"],
+  "White List":["ppq.apple.com","i.yyyue.xyz","app.localhost.direct"],
+  "Optional Whitelist":["itunes.apple.com","apps.apple.com","appstore.apple.com","icloud-content.com","gsa.apple.com"],
+  "Optional Denylist":["metrics.apple.com","metrics.icloud.com","analytics.apple.com","mzstatic.com","xp.apple.com","edge.apple.com"]
+};
+const container=document.getElementById('cardsGrid');
+for(const [title,domains] of Object.entries(lists)){
+  const card=document.createElement('div');card.className='card';
+  const id=title.toLowerCase().replace(/\s/g,'-');
+  const isOptional=title.includes("Optional");
+  card.innerHTML=`
+    <div class="card-header ${isOptional?'collapsible':''}">
+      <div class="card-title">${title}</div>
+      ${isOptional?`<div class="expand-icon"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>`:''}
+    </div>
+    <ul class="domain-list ${isOptional?'collapsed':''}" id="${id}"></ul>
+    <div class="card-footer">
+      <button class="copy-box" data-box="${id}">Copy TXT</button>
+      <button class="copy-box" data-download="${id}">Download List</button>
+    </div>
+  `;
+  container.appendChild(card);
+  const ul=document.getElementById(id);
+  domains.forEach(d=>{
+    const li=document.createElement('li');
+    li.innerHTML=`${formatDomain(d)}<button class="copy-domain" data-domain="${formatDomain(d)}">Copy</button>`;
+    ul.appendChild(li);
+  });
+}
+window.addEventListener('load',()=>{
+  const overlay=document.getElementById('loadingOverlay');
+  setTimeout(()=>{
+    overlay.style.transition='opacity 0.5s';
+    overlay.style.opacity='0';
+    setTimeout(()=>overlay.remove(),500);
+    document.querySelectorAll('.card').forEach((c,i)=>{setTimeout(()=>{c.style.opacity='1';c.style.transform='translateY(0)';},i*150);});
+    document.querySelector('.container').style.opacity='1';
+    document.querySelector('.container').style.transform='translateY(0)';
+  },1200);
+});
+document.querySelectorAll('.collapsible').forEach(h=>{
+  h.addEventListener('click',()=>{
+    const ul=h.nextElementSibling;
+    if(ul.style.maxHeight && ul.style.maxHeight!=="0px"){ul.style.maxHeight="0";ul.style.padding="0";h.classList.remove('expanded');} 
+    else {ul.style.maxHeight=ul.scrollHeight+"px";ul.style.padding="6px 0";h.classList.add('expanded');}
+  });
+});
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('copy-domain')){
+    const val=e.target.dataset.domain;
+    navigator.clipboard.writeText(val);
+    e.target.classList.add('copied-highlight');
+    setTimeout(()=>e.target.classList.remove('copied-highlight'),600);
+  }
+  if(e.target.dataset.box){
+    const ul=document.getElementById(e.target.dataset.box);
+    let text='';ul.querySelectorAll('li').forEach(li=>text+=li.firstChild.textContent+'\n');
+    navigator.clipboard.writeText(text.trim());
+    e.target.classList.add('copied-highlight');
+    setTimeout(()=>e.target.classList.remove('copied-highlight'),600);
+  }
+  if(e.target.dataset.download){
+    const ul=document.getElementById(e.target.dataset.download);
+    let text='';ul.querySelectorAll('li').forEach(li=>text+=li.firstChild.textContent+'\n');
+    const blob=new Blob([text.trim()],{type:"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=e.target.dataset.download+'.txt';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),500);
+  }
+});
+document.getElementById('copyAllBtn').addEventListener('click',()=>{
+  let text='';document.querySelectorAll('.domain-list li').forEach(li=>text+=li.firstChild.textContent+'\n');
+  navigator.clipboard.writeText(text.trim());
+  const btn=document.getElementById('copyAllBtn');btn.classList.add('copied-highlight');
+  setTimeout(()=>btn.classList.remove('copied-highlight'),600);
+});
+document.getElementById('downloadAllBtn').addEventListener('click',()=>{
+  let text='';document.querySelectorAll('.domain-list li').forEach(li=>text+=li.firstChild.textContent+'\n');
+  const blob=new Blob([text.trim()],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='nextdns-lists.txt';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
+});
+</script>
+</body>
+</html>
